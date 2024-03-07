@@ -1,7 +1,6 @@
 from tkinter import *
 from tkinter import ttk
 from datetime import datetime
-import json
 from Employee import Employee
 from Agent import Agent
 from Trainer import Trainer
@@ -53,29 +52,22 @@ def add_employee():
                                    new_employee.ResponsibilityBonus if hasattr(new_employee, 'ResponsibilityBonus') else '',
                                    net_salary))
 
-    # Save employee data to JSON file
+    # Save employee data to TXT file
     try:
-        with open("employees.json", "r") as file:
-            data = json.load(file)
-
-        # Add new employee to the data
-        new_employee_data = {
-            "Employee Number": new_employee.EmployeeNumber,
-            "Name": new_employee.Name,
-            "Birth Date": new_employee.BirthDate,
-            "Type": selected_type,
-            "Hire Date": new_employee.HireDate,
-            "Base Salary": new_employee.BaseSalary,
-            "Overtime Rate": new_employee.OvertimeRate if hasattr(new_employee, 'OvertimeRate') else '',
-            "Overtime Hours": new_employee.OvertimeHours if hasattr(new_employee, 'OvertimeHours') else '',
-            "Responsibility Bonus": new_employee.ResponsibilityBonus if hasattr(new_employee, 'ResponsibilityBonus') else '',
-            "Net Salary": net_salary,
-        }
-        data.append(new_employee_data)
-
-        # Save updated data to the JSON file
-        with open("employees.json", "w") as file:
-            json.dump(data, file, indent=2)
+        with open("employees.txt", "a") as file:
+            file.write(f"Employee Number: {new_employee.EmployeeNumber}\n")
+            file.write(f"Name: {new_employee.Name}\n")
+            file.write(f"Birth Date: {new_employee.BirthDate}\n")
+            file.write(f"Type: {selected_type}\n")
+            file.write(f"Hire Date: {new_employee.HireDate}\n")
+            file.write(f"Base Salary: {new_employee.BaseSalary}\n")
+            if hasattr(new_employee, 'OvertimeRate'):
+                file.write(f"Overtime Rate: {new_employee.OvertimeRate}\n")
+            if hasattr(new_employee, 'OvertimeHours'):
+                file.write(f"Overtime Hours: {new_employee.OvertimeHours}\n")
+            if hasattr(new_employee, 'ResponsibilityBonus'):
+                file.write(f"Responsibility Bonus: {new_employee.ResponsibilityBonus}\n")
+            file.write(f"Net Salary: {net_salary}\n")
 
         # Clear entry widgets after successful addition
         name_entry.delete(0, END)
@@ -99,8 +91,17 @@ def remove_employee():
 def load_data():
     global counter
     try:
-        with open("employees.json", "r") as file:
-            data = json.load(file)
+        with open("employees.txt", "r") as file:
+            lines = file.readlines()
+            data = []
+            employee = {}
+            for line in lines:
+                if line.strip() == "":
+                    data.append(employee)
+                    employee = {}
+                else:
+                    key, value = line.strip().split(": ")
+                    employee[key] = value
 
             # Find the highest employee number in the loaded data
             existing_numbers = [int(employee.get("Employee Number", 0)) for employee in data]
@@ -134,9 +135,92 @@ def save_data():
         }
         data.append(employee)
 
-    with open("employees.json", "w") as file:
-        json.dump(data, file, indent=2)
+    with open("employees.txt", "w") as file:
+        for employee in data:
+            file.write(f"Employee Number: {employee['Employee Number']}\n")
+            file.write(f"Name: {employee['Name']}\n")
+            file.write(f"Birth Date: {employee['Birth Date']}\n")
+            file.write(f"Type: {employee['Type']}\n")
+            file.write(f"Hire Date: {employee['Hire Date']}\n")
+            file.write(f"Base Salary: {employee['Base Salary']}\n")
+            file.write(f"Overtime Rate: {employee['Overtime Rate']}\n")
+            file.write(f"Overtime Hours: {employee['Overtime Hours']}\n")
+            file.write(f"Responsibility Bonus: {employee['Responsibility Bonus']}\n")
+            file.write(f"Net Salary: {employee['Net Salary']}\n")
+            file.write("\n")
 
+def load_data_for_modification():
+    selected_item = tree.selection()
+    if selected_item:
+        values = tree.item(selected_item, "values")
+        root.selected_employee = values
+        set_entry_values(values)
+
+def set_entry_values(values):
+    name_entry.delete(0, END)
+    base_salary_entry.delete(0, END)
+    birth_date_entry.delete(0, END)
+    hire_date_entry.delete(0, END)
+    overtime_rate_entry.delete(0, END)
+    overtime_hours_entry.delete(0, END)
+    responsibility_bonus_entry.delete(0, END)
+
+    name_entry.insert(0, values[1])
+    birth_date_entry.insert(0, values[2])
+    hire_date_entry.insert(0, values[4])
+    base_salary_entry.insert(0, values[5])
+
+    if values[3] == "Trainer":
+        overtime_rate_entry["state"] = "normal"
+        overtime_hours_entry["state"] = "normal"
+        overtime_rate_entry.insert(0, values[6])
+        overtime_hours_entry.insert(0, values[7])
+    elif values[3] == "Agent":
+        responsibility_bonus_entry["state"] = "normal"
+        responsibility_bonus_entry.insert(0, values[8])
+
+def apply_modifications():
+    if root.selected_employee:
+        selected_item = tree.selection()
+        values = get_entry_values()
+
+        # Update Treeview
+        tree.item(selected_item, values=values)
+
+        # Save modifications to file
+        save_data()
+
+        # Clear selected employee and entry values
+        root.selected_employee = None
+        clear_entry_values()
+
+def get_entry_values():
+    name = name_entry.get()
+    baseSalary = float(base_salary_entry.get()) if base_salary_entry.get() else 0.0
+    birthDate = birth_date_entry.get()
+    hireDate = hire_date_entry.get()
+
+    selected_type = employee_type.get()
+
+    if selected_type == "Trainer":
+        overtimeRate = float(overtime_rate_entry.get()) if overtime_rate_entry.get() else 0.0
+        overtimeHours = int(overtime_hours_entry.get()) if overtime_hours_entry.get() else 0
+        return (root.selected_employee[0], name, birthDate, selected_type, hireDate, baseSalary, overtimeRate, overtimeHours, "", "")
+    elif selected_type == "Agent":
+        responsibilityBonus = float(responsibility_bonus_entry.get()) if responsibility_bonus_entry.get() else 0.0
+        return (root.selected_employee[0], name, birthDate, selected_type, hireDate, baseSalary, "", "", responsibilityBonus, "")
+    else:
+        raise ValueError("Unsupported employee type")
+
+def clear_entry_values():
+    name_entry.delete(0, END)
+    base_salary_entry.delete(0, END)
+    birth_date_entry.delete(0, END)
+    hire_date_entry.delete(0, END)
+    overtime_rate_entry.delete(0, END)
+    overtime_hours_entry.delete(0, END)
+    responsibility_bonus_entry.delete(0, END)
+    
 def on_employee_type_change(*args):
     selected_type = employee_type.get()
 
@@ -204,6 +288,13 @@ add_button = Button(root, text="Add Employee", command=add_employee)
 add_button.place(x=20, y=255)
 remove_button = Button(root, text="Remove Employee", command=remove_employee)
 remove_button.place(x=120, y=255)
+# Button to load data into entry widgets for modification
+load_data_button = Button(root, text="Load Data for Modification", command=load_data_for_modification)
+load_data_button.place(x=20, y=285)
+
+# Button to apply modifications
+apply_modifications_button = Button(root, text="Apply Modifications", command=apply_modifications)
+apply_modifications_button.place(x=200, y=285)
 
 # Button to load data into entry widgets for modification
 # load_data_button = Button(root, text="Load Data for Modification")
@@ -223,7 +314,7 @@ for col in columns:
 
 tree.place(x=20, y=300)
 
-# Load data from JSON file
+
 load_data()
 
 root.mainloop()
